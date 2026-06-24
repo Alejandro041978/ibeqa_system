@@ -158,7 +158,7 @@ Description: ${description}
       const magicLink = linkData?.properties?.action_link ?? `${process.env.NEXT_PUBLIC_SITE_URL}/login`
 
       await resend.emails.send({
-        from: 'IBEQA Admissions <no-reply@ajucon.org.pe>',
+        from: 'IBEQA Admissions <no-reply@ibeqa.org>',
         to: contact_email,
         subject: `Your institution meets IBEQA eligibility requirements — ${institution_name}`,
         html: `
@@ -202,7 +202,7 @@ Description: ${description}
     } else {
       // Send rejection email
       await resend.emails.send({
-        from: 'IBEQA Admissions <no-reply@ajucon.org.pe>',
+        from: 'IBEQA Admissions <no-reply@ibeqa.org>',
         to: contact_email,
         subject: `Your IBEQA accreditation application — ${institution_name}`,
         html: `
