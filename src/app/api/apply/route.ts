@@ -106,8 +106,8 @@ Description: ${description}
         console.error('Error creating user:', userError)
       }
 
-      // Send magic link (OTP) via Supabase so the user gets a login link
-      const { error: otpError } = await supabaseAdmin.auth.admin.generateLink({
+      // Generate magic link and embed it in the approval email
+      const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
         type: 'magiclink',
         email: contact_email,
         options: {
@@ -115,7 +115,8 @@ Description: ${description}
         },
       })
 
-      // Fallback: send approval email via Resend with login instructions
+      const magicLink = linkData?.properties?.action_link ?? `${process.env.NEXT_PUBLIC_SITE_URL}/login`
+
       await resend.emails.send({
         from: 'IBEQA Admissions <no-reply@ajucon.org.pe>',
         to: contact_email,
@@ -133,11 +134,12 @@ Description: ${description}
               </p>
               <p style="font-size: 14px; color: #4b5563; line-height: 1.6;">${evaluation.message}</p>
 
-              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 24px 0;">
-                <p style="margin: 0; font-size: 14px; color: #166534; font-weight: 500;">Next Step: Access Your Dashboard</p>
-                <p style="margin: 8px 0 0; font-size: 13px; color: #15803d;">
-                  An access link has been sent to this email address. Check your inbox for a separate message from IBEQA with your login link. If you don't see it, check your spam folder.
-                </p>
+              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 24px; margin: 24px 0; text-align: center;">
+                <p style="margin: 0 0 16px; font-size: 14px; color: #166534; font-weight: 500;">Access Your Dashboard</p>
+                <a href="${magicLink}" style="display: inline-block; background: #1B2B5E; color: white; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600;">
+                  Go to My Dashboard →
+                </a>
+                <p style="margin: 16px 0 0; font-size: 11px; color: #6b7280;">This link expires in 24 hours and can only be used once.</p>
               </div>
 
               <p style="font-size: 14px; color: #4b5563; line-height: 1.6;">
