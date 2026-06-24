@@ -106,6 +106,46 @@ Description: ${description}
         console.error('Error creating user:', userError)
       }
 
+      // Create institution record linked to the new user
+      const currentYear = new Date().getFullYear()
+      const yearsOperating = founded_year ? currentYear - parseInt(founded_year) : null
+      const studentCountNum = student_count ? parseInt(student_count) : null
+      const size = studentCountNum
+        ? studentCountNum >= 20000 ? 'large' : studentCountNum >= 5000 ? 'medium' : 'small'
+        : 'small'
+
+      const { data: institutionData, error: institutionError } = await supabaseAdmin
+        .from('institutions')
+        .insert({
+          name: institution_name,
+          country,
+          website: website || null,
+          founded_year: founded_year ? parseInt(founded_year) : null,
+          student_count: studentCountNum,
+          size,
+          contact_email,
+          is_active: true,
+        })
+        .select('id')
+        .single()
+
+      if (institutionError) {
+        console.error('Error creating institution:', institutionError)
+      }
+
+      // Update user metadata with institution_id
+      if (institutionData && userData?.user?.id) {
+        await supabaseAdmin.auth.admin.updateUserById(userData.user.id, {
+          user_metadata: {
+            full_name: contact_name,
+            role: 'institution_admin',
+            institution_id: institutionData.id,
+            institution_name,
+            country,
+          },
+        })
+      }
+
       // Generate magic link and embed it in the approval email
       const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
         type: 'magiclink',
