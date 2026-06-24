@@ -3,14 +3,14 @@
 import { useState } from 'react'
 import { Upload, Loader2, CheckCircle2, AlertCircle, X, FileText } from 'lucide-react'
 
-type Fee = { key: string; name: string; gbp: number; eur: number }
+type FeeItem = { key: string; name: string; usd: number }
 
 interface Props {
   institutionId: string
-  feeSchedule: Fee[]
+  feeItems: FeeItem[]
 }
 
-export default function PaymentDeclarationForm({ institutionId, feeSchedule }: Props) {
+export default function PaymentDeclarationForm({ institutionId, feeItems }: Props) {
   const [feeType, setFeeType] = useState('')
   const [currency, setCurrency] = useState<'GBP' | 'EUR'>('GBP')
   const [amount, setAmount] = useState('')
@@ -21,19 +21,6 @@ export default function PaymentDeclarationForm({ institutionId, feeSchedule }: P
   const [file, setFile] = useState<File | null>(null)
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
-
-  const selectedFee = feeSchedule.find(f => f.key === feeType)
-
-  function handleFeeChange(key: string) {
-    setFeeType(key)
-    const fee = feeSchedule.find(f => f.key === key)
-    if (fee) setAmount(currency === 'GBP' ? fee.gbp.toString() : fee.eur.toString())
-  }
-
-  function handleCurrencyChange(cur: 'GBP' | 'EUR') {
-    setCurrency(cur)
-    if (selectedFee) setAmount(cur === 'GBP' ? selectedFee.gbp.toString() : selectedFee.eur.toString())
-  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
@@ -76,15 +63,8 @@ export default function PaymentDeclarationForm({ institutionId, feeSchedule }: P
       } else {
         setStatus('success')
         setMessage('Payment declared successfully. Our team will verify your transfer within 2 business days.')
-        // Reset form
-        setFeeType('')
-        setCurrency('GBP')
-        setAmount('')
-        setTransferDate('')
-        setBankReference('')
-        setPayerName('')
-        setNotes('')
-        setFile(null)
+        setFeeType(''); setCurrency('GBP'); setAmount(''); setTransferDate('')
+        setBankReference(''); setPayerName(''); setNotes(''); setFile(null)
       }
     } catch {
       setStatus('error')
@@ -92,32 +72,48 @@ export default function PaymentDeclarationForm({ institutionId, feeSchedule }: P
     }
   }
 
+  const selectedFee = feeItems.find(f => f.key === feeType)
+
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Fee type + currency */}
+      {/* Fee type */}
+      <div>
+        <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+          Fee type <span className="text-red-400">*</span>
+        </label>
+        <select
+          required
+          value={feeType}
+          onChange={e => setFeeType(e.target.value)}
+          className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1B2B5E]/20 focus:border-[#1B2B5E] bg-white text-gray-800"
+        >
+          <option value="">Select a fee...</option>
+          {feeItems.map(f => (
+            <option key={f.key} value={f.key}>
+              {f.name} — ${f.usd.toLocaleString()} USD
+            </option>
+          ))}
+        </select>
+        {selectedFee && (
+          <p className="text-xs text-gray-400 mt-1.5">
+            Reference amount: <span className="font-semibold text-gray-600">${selectedFee.usd.toLocaleString()} USD</span>.
+            Enter the GBP or EUR equivalent you transferred.
+          </p>
+        )}
+      </div>
+
+      {/* Currency + amount */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Fee type <span className="text-red-400">*</span></label>
-          <select
-            required
-            value={feeType}
-            onChange={e => handleFeeChange(e.target.value)}
-            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1B2B5E]/20 focus:border-[#1B2B5E] bg-white text-gray-800"
-          >
-            <option value="">Select a fee...</option>
-            {feeSchedule.map(f => (
-              <option key={f.key} value={f.key}>{f.name}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Currency <span className="text-red-400">*</span></label>
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+            Payment currency <span className="text-red-400">*</span>
+          </label>
           <div className="grid grid-cols-2 gap-2">
             {(['GBP', 'EUR'] as const).map(cur => (
               <button
                 key={cur}
                 type="button"
-                onClick={() => handleCurrencyChange(cur)}
+                onClick={() => setCurrency(cur)}
                 className={`py-2.5 rounded-lg text-sm font-medium border transition-colors ${
                   currency === cur
                     ? 'bg-[#1B2B5E] text-white border-[#1B2B5E]'
@@ -129,13 +125,9 @@ export default function PaymentDeclarationForm({ institutionId, feeSchedule }: P
             ))}
           </div>
         </div>
-      </div>
-
-      {/* Amount + date */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-            Amount transferred ({currency}) <span className="text-red-400">*</span>
+            Amount transferred <span className="text-red-400">*</span>
           </label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">
@@ -153,8 +145,14 @@ export default function PaymentDeclarationForm({ institutionId, feeSchedule }: P
             />
           </div>
         </div>
+      </div>
+
+      {/* Date + reference */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Date of transfer <span className="text-red-400">*</span></label>
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+            Date of transfer <span className="text-red-400">*</span>
+          </label>
           <input
             type="date"
             required
@@ -162,20 +160,6 @@ export default function PaymentDeclarationForm({ institutionId, feeSchedule }: P
             max={new Date().toISOString().split('T')[0]}
             onChange={e => setTransferDate(e.target.value)}
             className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1B2B5E]/20 focus:border-[#1B2B5E] text-gray-800"
-          />
-        </div>
-      </div>
-
-      {/* Payer + reference */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Sender name (as shown on transfer)</label>
-          <input
-            type="text"
-            placeholder="e.g. Universidad XYZ"
-            value={payerName}
-            onChange={e => setPayerName(e.target.value)}
-            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1B2B5E]/20 focus:border-[#1B2B5E] placeholder:text-gray-300"
           />
         </div>
         <div>
@@ -188,6 +172,18 @@ export default function PaymentDeclarationForm({ institutionId, feeSchedule }: P
             className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1B2B5E]/20 focus:border-[#1B2B5E] placeholder:text-gray-300"
           />
         </div>
+      </div>
+
+      {/* Sender name */}
+      <div>
+        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Sender name (as shown on bank transfer)</label>
+        <input
+          type="text"
+          placeholder="e.g. Universidad Nacional de Ejemplo"
+          value={payerName}
+          onChange={e => setPayerName(e.target.value)}
+          className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1B2B5E]/20 focus:border-[#1B2B5E] placeholder:text-gray-300"
+        />
       </div>
 
       {/* Evidence upload */}
@@ -218,10 +214,12 @@ export default function PaymentDeclarationForm({ institutionId, feeSchedule }: P
 
       {/* Notes */}
       <div>
-        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Additional notes <span className="text-gray-400 font-normal">(optional)</span></label>
+        <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+          Additional notes <span className="text-gray-400 font-normal">(optional)</span>
+        </label>
         <textarea
           rows={2}
-          placeholder="Any additional information for the IBEQA team..."
+          placeholder="Any additional information for the IBEQA finance team..."
           value={notes}
           onChange={e => setNotes(e.target.value)}
           className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-[#1B2B5E]/20 focus:border-[#1B2B5E] placeholder:text-gray-300"
@@ -229,17 +227,15 @@ export default function PaymentDeclarationForm({ institutionId, feeSchedule }: P
       </div>
 
       {/* Submit */}
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-3 pt-1">
         <button
           type="submit"
           disabled={status === 'loading' || !feeType || !amount || !transferDate || !file}
           className="inline-flex items-center gap-2 bg-[#1B2B5E] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#162347] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {status === 'loading' ? (
-            <><Loader2 size={15} className="animate-spin" /> Submitting...</>
-          ) : (
-            'Submit payment declaration'
-          )}
+          {status === 'loading'
+            ? <><Loader2 size={15} className="animate-spin" /> Submitting...</>
+            : 'Submit payment declaration'}
         </button>
 
         {status === 'success' && (
