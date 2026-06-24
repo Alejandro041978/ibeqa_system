@@ -119,7 +119,7 @@ Description: ${description}
       await resend.emails.send({
         from: 'IBEQA Admissions <no-reply@ajucon.org.pe>',
         to: contact_email,
-        subject: `Your IBEQA accreditation application has been pre-approved — ${institution_name}`,
+        subject: `Your institution meets IBEQA eligibility requirements — ${institution_name}`,
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; color: #1a1a1a;">
             <div style="background: #1B2B5E; padding: 20px 24px; border-radius: 12px 12px 0 0;">
@@ -129,7 +129,7 @@ Description: ${description}
             <div style="background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px; padding: 32px;">
               <p style="font-size: 15px; line-height: 1.6;">Dear <strong>${contact_name}</strong>,</p>
               <p style="font-size: 15px; line-height: 1.6;">
-                We are pleased to inform you that <strong>${institution_name}</strong>'s application to begin the IBEQA accreditation process has been <span style="color: #16a34a; font-weight: 600;">pre-approved</span>.
+                We are pleased to inform you that <strong>${institution_name}</strong> <span style="color: #16a34a; font-weight: 600;">meets the minimum eligibility requirements</span> to begin the IBEQA accreditation process.
               </p>
               <p style="font-size: 14px; color: #4b5563; line-height: 1.6;">${evaluation.message}</p>
 

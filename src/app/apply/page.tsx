@@ -80,7 +80,7 @@ export default function ApplyPage() {
             </div>
 
             <h2 className={`text-2xl font-bold mb-2 ${result.approved ? 'text-green-800' : 'text-red-800'}`}>
-              {result.approved ? 'Application Pre-Approved!' : 'Application Not Eligible'}
+              {result.approved ? 'Eligibility Requirements Met!' : 'Eligibility Requirements Not Met'}
             </h2>
 
             <p className={`text-sm mb-6 ${result.approved ? 'text-green-700' : 'text-red-700'}`}>
