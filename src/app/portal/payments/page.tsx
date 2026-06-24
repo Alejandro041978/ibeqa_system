@@ -1,7 +1,20 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { CheckCircle2, Clock, XCircle, Info, AlertTriangle } from 'lucide-react'
+import { CheckCircle2, Clock, XCircle, Info, AlertTriangle, RefreshCw } from 'lucide-react'
 import PaymentDeclarationForm from './PaymentDeclarationForm'
+
+async function getExchangeRates(): Promise<{ GBP: number; EUR: number; date: string } | null> {
+  try {
+    const res = await fetch('https://api.frankfurter.app/latest?from=USD&to=GBP,EUR', {
+      next: { revalidate: 3600 }, // refresh every hour
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return { GBP: data.rates.GBP, EUR: data.rates.EUR, date: data.date }
+  } catch {
+    return null
+  }
+}
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -66,10 +79,13 @@ export default async function PaymentsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const institutionId = user?.user_metadata?.institution_id
 
-  // Get institution size
-  const { data: institution } = institutionId
-    ? await supabaseAdmin.from('institutions').select('size, student_count').eq('id', institutionId).single()
-    : { data: null }
+  // Get institution size and live exchange rates in parallel
+  const [{ data: institution }, rates] = await Promise.all([
+    institutionId
+      ? supabaseAdmin.from('institutions').select('size, student_count').eq('id', institutionId).single()
+      : Promise.resolve({ data: null }),
+    getExchangeRates(),
+  ])
 
   const size: InstitutionSize = (institution?.size ?? 'small') as InstitutionSize
   const fees = FEE_SCHEDULE[size]
@@ -180,6 +196,101 @@ export default async function PaymentsPage() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Exchange rates */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-800">Today's Exchange Rates & Amounts Due</h2>
+            {rates ? (
+              <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                <RefreshCw size={10} />
+                Rate date: {new Date(rates.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} · Source: Frankfurter / European Central Bank
+              </p>
+            ) : (
+              <p className="text-xs text-amber-500 mt-0.5">Exchange rates temporarily unavailable — contact us for current equivalents.</p>
+            )}
+          </div>
+        </div>
+
+        {rates && (
+          <>
+            {/* Rate summary */}
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 grid grid-cols-2 gap-4">
+              <div className="flex items-center justify-between bg-white rounded-lg border border-gray-200 px-4 py-3">
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">USD → GBP</p>
+                  <p className="text-lg font-bold text-gray-900">£{rates.GBP.toFixed(4)}</p>
+                  <p className="text-xs text-gray-400">per 1 US Dollar</p>
+                </div>
+                <span className="text-2xl">🇬🇧</span>
+              </div>
+              <div className="flex items-center justify-between bg-white rounded-lg border border-gray-200 px-4 py-3">
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">USD → EUR</p>
+                  <p className="text-lg font-bold text-gray-900">€{rates.EUR.toFixed(4)}</p>
+                  <p className="text-xs text-gray-400">per 1 US Dollar</p>
+                </div>
+                <span className="text-2xl">🇪🇺</span>
+              </div>
+            </div>
+
+            {/* Fee amounts in GBP and EUR */}
+            <div className="divide-y divide-gray-50">
+              <div className="px-6 py-3 grid grid-cols-3 gap-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                <span>Fee</span>
+                <span className="text-center">🇬🇧 GBP equivalent</span>
+                <span className="text-center">🇪🇺 EUR equivalent</span>
+              </div>
+              {feeItems.map((fee) => (
+                <div key={fee.key} className="px-6 py-4 grid grid-cols-3 gap-4 items-center">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{fee.name}</p>
+                    <p className="text-xs text-gray-400">${fee.usd.toLocaleString()} USD</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-base font-bold text-gray-900">
+                      £{(fee.usd * rates.GBP).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-xs text-gray-400">GBP</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-base font-bold text-gray-900">
+                      €{(fee.usd * rates.EUR).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-xs text-gray-400">EUR</p>
+                  </div>
+                </div>
+              ))}
+              {/* Total row */}
+              <div className="px-6 py-4 grid grid-cols-3 gap-4 items-center bg-gray-50">
+                <div>
+                  <p className="text-sm font-bold text-gray-800">Total (all stages)</p>
+                  <p className="text-xs text-gray-400">${(fees.accreditation + siteVisitTotal + fees.annual_fee).toLocaleString()} USD</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-base font-bold text-[#1B2B5E]">
+                    £{((fees.accreditation + siteVisitTotal + fees.annual_fee) * rates.GBP).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-gray-400">GBP</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-base font-bold text-[#1B2B5E]">
+                    €{((fees.accreditation + siteVisitTotal + fees.annual_fee) * rates.EUR).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-gray-400">EUR</p>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-3 bg-amber-50 border-t border-amber-100 flex items-start gap-2">
+              <AlertTriangle size={13} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700">
+                Exchange rates are indicative and updated hourly. The actual amount charged may vary slightly depending on your bank's rate on the day of transfer. IBEQA accepts the GBP or EUR equivalent at the rate on the date of transfer.
+              </p>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Bank Account Details */}
